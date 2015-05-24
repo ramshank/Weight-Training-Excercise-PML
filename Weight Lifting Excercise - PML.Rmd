@@ -1,0 +1,63 @@
+---
+title: "Weight Lifting Excercise - Analysis"
+author: "Ramshanker Krishnan"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+## Goal
+The Goal of the project is to predict the manner in which excercises were done. For this puporse we use the Weight Lifting Excercise dataset from  http://groupware.les.inf.puc-rio.br/har. Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. While people reguarly quantify how much of an activity they performed, they rarely quantify how well they performed. In this project we use the data from the accelerometers on the belt, forearm, arm, and dumbell from 6 participants as they performed barbell lifts correctly and incorrectly in 5 different ways.
+
+##More information about the Dataset
+A detailed paper on the dataset can be found at http://groupware.les.inf.puc-rio.br/public/papers/2013.Velloso.QAR-WLE.pdf.
+
+
+##Approach
+To use Machine Learning to predict the class of the activity based on the sensor data. The Machine learning model that I am using is  Random Forest. 
+
+## Cross validation 
+For cross validation, I am splitting the data 70% for training and 30% for validation. The confusion matrix metrics below show the outcome from my model
+
+
+```{r echo=TRUE,results='hide'}
+
+train <- read.csv("pml-training.csv",na.strings=c("NA",""),stringsAsFactors=FALSE)
+#Finding variables which have large number of NA's
+colKeep <- colMeans(is.na(train)) < 0.5
+table(colKeep)
+cTrain<-train[,names(train[,colKeep])]
+# removing the sequence number X, name and timestamps, new window and num window as the hypothesis on the outcome is based on the sensor data
+cTrain <- cTrain[,-c(1:7)]
+library(caret)
+inTrain <- createDataPartition(y=cTrain$classe, p=0.7, list=FALSE)
+training <- cTrain[inTrain,]
+training$classe <- as.factor(training$classe)
+testing <- cTrain[-inTrain,]
+testing$classe <- as.factor(testing$classe)
+dim(training);dim(testing)
+
+load("RFModel.RData",.GlobalEnv)
+if(!exists("modFit")){
+modFit <- train(classe ~ ., data=training, method="rf",proxy=TRUE)
+save(modFit, file="RFModel.Rdata")
+}
+```
+
+```{r echo=FALSE}
+modFit$results
+#modFit$finalModel
+pred<-predict(modFit,testing)
+cm<-confusionMatrix(pred,testing$classe)
+cm
+```
+
+## Errors
+The OOB estimate of error based on the model is 0.76.  Based on the cross validation results, the out of sample error is 0.0082 
+
+
+## Optimizing the model
+The current model has more than 99% accuracy. If for any reason it needs to be optimized further, we could use an ensemble of bagging and Random Forest. 
+
